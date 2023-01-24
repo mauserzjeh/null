@@ -14,7 +14,8 @@ var errNilPtr = errors.New("destination pointer is nil")
 
 // convertAssignRows copies to dest the value in src, converting it if possible.
 // An error is returned if the copy would result in loss of information.
-// dest should be a pointer type.
+// dest should be a pointer type. This is a stripped down version of the
+// standard database/sql package's convertAssignRows function.
 func convertAssign(dest, src any) error {
 	// Common cases, without reflect.
 	switch s := src.(type) {
@@ -244,6 +245,7 @@ func convertAssign(dest, src any) error {
 	return fmt.Errorf("unsupported Scan, storing driver.Value type %T into type %T", src, dest)
 }
 
+// strconvErr tries to type assert the error as strconv.NumError
 func strconvErr(err error) error {
 	if ne, ok := err.(*strconv.NumError); ok {
 		return ne.Err
@@ -251,6 +253,7 @@ func strconvErr(err error) error {
 	return err
 }
 
+// cloneBytes creates a copy of b
 func cloneBytes(b []byte) []byte {
 	if b == nil {
 		return nil
@@ -260,6 +263,7 @@ func cloneBytes(b []byte) []byte {
 	return c
 }
 
+// asString transforms src to a string
 func asString(src any) string {
 	switch v := src.(type) {
 	case string:
@@ -283,6 +287,7 @@ func asString(src any) string {
 	return fmt.Sprintf("%v", src)
 }
 
+// asBytes transforms rv into bytes
 func asBytes(buf []byte, rv reflect.Value) (b []byte, ok bool) {
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
