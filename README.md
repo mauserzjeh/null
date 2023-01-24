@@ -184,7 +184,11 @@ log.Printf("%s", j)
 3. Implement `JSON` marshaler for `Person` and `Sibling`
 ```go
 // NOTE: 
-// It is better to implement a generic function that can turn a struct into a map. Then in the MarshalJSON implementations, turn the structure into a map, loop through each item and do a type switch for nullable variables (each type of null.Var used in the original struct should have a case) and just filter out those variables which were not set. To keep this example clean, we will just manually check each field instead.
+// It is better to implement a generic function that can turn a struct into a map. 
+// Then in the MarshalJSON implementations, turn the structure into a map, loop through each item and 
+// do a type switch for nullable variables (each type of null.Var used in the original struct should have a case) and
+// just filter out those variables which were not set. 
+// To keep this example clean, we will just manually check each field instead.
 
 // MarshalJSON implements the json.Marshaler interface
 func (s Sibling) MarshalJSON() ([]byte, error) {
@@ -496,7 +500,8 @@ log.Printf("%+v", p)
 6. Use with the `database/sql` package
 ```go
 // NOTE:
-// If the underlying value is not compatible with the database/sql package by default, then implement sql.Scanner and driver.Valuer interfaces for the underlying type
+// If the underlying value is not compatible with the database/sql package by default, 
+// then implement sql.Scanner and driver.Valuer interfaces for the underlying type
 
 var p Person
 
@@ -505,7 +510,8 @@ var p Person
 _ = db.Exec(/* query */, p.Age, p.Name)
 
 // Scan
-// If any of the values scanned will be NULL, then the IsValid() will return false. IsSet() will return true for every field used in the scan.
+// If any of the values scanned will be NULL, then the IsValid() will return false. 
+// IsSet() will return true for every field used in the scan.
 _ = db.QueryRow(/* query */, &p.Age, &p.Name)
 ```
 
