@@ -6,7 +6,7 @@ Null is a package that provides a generic nullable variable that can be used for
 
 ## Features
 - Uses a generic type for the underlying value
-- Provides an easy way to test if certain struct fields were set after unmarshaling a json message
+- Provides an easy way to test if certain struct fields were set after unmarshaling a `JSON` message
 - Makes it easier to update only those fields in the database which were set previously. Especially in `NoSQL` databases using `JSON` documents
 - Compatible with the standard `database/sql` package
     - If the underlying type is a custom type that the standard `database/sql` package can't handle, then it is possible to implement the `sql.Scanner` and `driver.Valuer` interfaces for that given type to be compatible
