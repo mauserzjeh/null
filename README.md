@@ -392,7 +392,7 @@ func (p Person) MarshalJSON() ([]byte, error) {
 `FilterStruct` has an additional option to use custom tags when determining the keys for the filtered map that it will produce. 
 By default the `json` tag is used.
 ```go
-m, err := FilterStruct(s, UseTag("custom_tag"))
+m, err := null.FilterStruct(s, null.UseTag("custom_tag"))
 ```
 
 An example using `FilterMap`.
@@ -410,7 +410,7 @@ m := map[string]any{
     "c": c,
 }
 
-mf, err := FilterMap(m)
+mf, err := null.FilterMap(m)
 if err != nil {
     log.Fatal(err)
 }
