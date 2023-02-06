@@ -16,7 +16,7 @@ type Comparable[T any] interface {
 	Equal(T) bool
 }
 
-// assertEqual fails if the two values are not equal
+// assertEqual returns an error if the two values are not equal
 func assertEqual[T comparable](t testing.TB, got, want T) error {
 	t.Helper()
 

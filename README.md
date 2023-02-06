@@ -11,6 +11,7 @@ Null is a package that provides a generic nullable variable that can be used for
 - Compatible with the standard `database/sql` package
     - If the underlying type is a custom type that the standard `database/sql` package can't handle, then it is possible to implement the `sql.Scanner` and `driver.Valuer` interfaces for that given type to be compatible
 - Possible to control how the underlying value is handled during json marshalling and unmarshalling by implementing the `json.Marshaler` and `json.Unmarshaler` interfaces for the underlying type
+- Helper functions provide methods to easily filter unset fields in structs and maps
 
 ## Installation
 ```
@@ -20,7 +21,7 @@ go get -u github.com/mauserzjeh/null
 ## Usage & Examples
 Below you can see how to use the package in general and also in a more complex scenario. There are a few examples in `test_null.go` as well.
 
-#### General usage
+## General usage
 ```go
 var nullableStr null.Var[string]
 
@@ -55,9 +56,9 @@ nullableStr.Valid() // false
 nullableStr.Val() // ""
 ```
 
-#### Complex usage
+## Complex usage
 
-1. Let's have the following types
+### 1. Let's have the following types
 ```go
 // custom integer type
 type SiblingType int64
@@ -91,7 +92,7 @@ type Person struct {
 }
 ```
 
-2. Default `JSON` marshaling
+### 2. Default `JSON` marshaling
 ```go
 var p Person
 log.Printf("%+v", p)
@@ -181,15 +182,8 @@ log.Printf("%s", j)
 // }
 ```
 
-3. Implement `JSON` marshaler for `Person` and `Sibling`
+### 3. Implement `JSON` marshaler for `Person` and `Sibling`
 ```go
-// NOTE: 
-// It is better to implement a generic function that can turn a struct into a map. 
-// Then in the MarshalJSON implementations, turn the structure into a map, loop through each item and 
-// do a type switch for nullable variables (each type of null.Var used in the original struct should have a case) and
-// just filter out those variables which were not set. 
-// To keep this example clean, we will just manually check each field instead.
-
 // MarshalJSON implements the json.Marshaler interface
 func (s Sibling) MarshalJSON() ([]byte, error) {
     m := map[string]any{}
@@ -329,7 +323,104 @@ log.Printf("%s", j)
 // }
 ```
 
-4. Default `JSON` unmarshal
+### 4. Use `FilterStruct` and `FilterMap`
+
+`FilterStruct` and `FilterMap` are helper functions that can filter either a struct or a map from unset nullable variables. They provide an easy way to implement `json.Marshaller` interface without having to check each field in a struct. These helper functions both return a map without the unset fields.
+
+However there are a few requirements:
+- All fields should be tagged with either a `json` or custom tag
+- To be able to recursively filter custom structs the `Filterable` interface should be embedded into the given structs
+- Custom structs can be embedded without having them to be tagged as long as they have `Filterable` interface embedded inside them and their fields are tagged. In this case the fields of the embedded struct will be on the same level as the struct that embeds it. If a tag is set for this embedded field, then the embedded struct fields will be presented under the given tag.
+
+Similiarly to `FilterStruct`, `FilterMap` can be used to filter maps containing nullable variables. 
+It will also recursively filter map keys which are `map[string]any` type.
+
+The `JSON` marshaler example looks like this using the `FilterStruct` helper function. More examples in `filter_test.go`
+    
+```go
+// custom struct
+type Sibling struct {
+    // Signal for FilterStruct that if this struct type is used
+    // for another struct's field type, then it can recursively
+    // filter it.
+    null.Filterable
+
+    Name null.Var[string]      `json:"name"`
+    Age  null.Var[int64]       `json:"age"`
+    Type null.Var[SiblingType] `json:"type"`
+}
+
+// another custom struct
+type Person struct {
+    // Signal for FilterStruct that if this struct type is used
+    // for another struct's field type, then it can recursively
+    // filter it.
+    null.Filterable 
+
+    Name       null.Var[string]                   `json:"name"`
+    Age        null.Var[int64]                    `json:"age"`
+    BirthDate  null.Var[time.Time]                `json:"birth_date"`
+    Books      null.Var[CustomSlice]              `json:"books"`
+    ExamScores null.Var[CustomMap[string, int64]] `json:"exam_scores"`
+
+    // Sibling is also filterable
+    Sibling    Sibling                            `json:"sibling"`
+}
+
+
+// MarshalJSON implements the json.Marshaler interface
+func (s Sibling) MarshalJSON() ([]byte, error) {
+    m, err := null.FilterStruct(s)
+    if err != nil {
+        return nil, err
+    }
+
+    return json.Marshal(m)
+}
+
+// MarshalJSON implements the json.Marshaler interface
+func (p Person) MarshalJSON() ([]byte, error) {
+    m, err := null.FilterStruct(p)
+    if err != nil {
+        return nil, err
+    }
+
+    return json.Marshal(m)
+}
+```
+
+`FilterStruct` has an additional option to use custom tags when determining the keys for the filtered map that it will produce. 
+By default the `json` tag is used.
+```go
+m, err := FilterStruct(s, UseTag("custom_tag"))
+```
+
+An example using `FilterMap`.
+```go
+a := null.Var[string]
+b := null.Var[string]
+c := null.Var[string]
+
+a.Set("A")
+b.SetNil()
+
+m := map[string]any{
+    "a": a,
+    "b": b,
+    "c": c,
+}
+
+mf, err := FilterMap(m)
+if err != nil {
+    log.Fatal(err)
+}
+
+log.Printf("%+v", mf)
+// map[a:A b:<nil>]
+
+```
+
+### 5. Default `JSON` unmarshal
 ```go
 var p Person
 log.Printf("%+v", p)
@@ -420,7 +511,7 @@ log.Printf("%+v", p)
 // }
 ```
 
-5. Implement `JSON` unmarshaler for `SiblingType`
+### 6. Implement `JSON` unmarshaler for `SiblingType`
 ```go
 // UnmarshalJSON implements the json.Unmarshaler interface
 func (st *SiblingType) UnmarshalJSON(data []byte) error {
@@ -497,7 +588,8 @@ log.Printf("%+v", p)
 // }
 ```
 
-6. Use with the `database/sql` package
+
+### 7. Use with the `database/sql` package
 ```go
 // NOTE:
 // If the underlying value is not compatible with the database/sql package by default, 
@@ -512,7 +604,7 @@ _ = db.Exec(/* query */, p.Age, p.Name)
 // Scan
 // If any of the values scanned will be NULL, then the IsValid() will return false. 
 // IsSet() will return true for every field used in the scan.
-_ = db.QueryRow(/* query */, &p.Age, &p.Name)
+_ = db.QueryRow(/* query */).Scan(&p.Age, &p.Name)
 ```
 
 

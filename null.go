@@ -6,12 +6,26 @@ import (
 	"encoding/json"
 )
 
-// Var[T] defines a variable with generic field of T type
-type Var[T any] struct {
-	set   bool // tells if the value was set
-	valid bool // tells if the value is NULL
-	value T    // the value itself
-}
+type (
+	// Var[T] defines a variable with generic field of T type
+	Var[T any] struct {
+		set   bool // tells if the value was set
+		valid bool // tells if the value is NULL
+		value T    // the value itself
+	}
+
+	// an internal interface that helps recognizing any nullable variables
+	nullVar interface {
+		isSet() bool
+		getVal() any
+	}
+
+	// an exported interface that helps recognizing which structs can be filtered
+	// recursively by FilterStruct
+	Filterable interface {
+		__()
+	}
+)
 
 var (
 	nullBytes = []byte("null")
@@ -105,4 +119,18 @@ func (v *Var[T]) Scan(src any) error {
 
 	v.valid = true
 	return convertAssign(&v.value, src)
+}
+
+// isSet implements the nullVar interface for internal usage
+func (v Var[T]) isSet() bool {
+	return v.set
+}
+
+// getVal implements the nullVar interface for internal usage
+func (v Var[T]) getVal() any {
+	if !v.set || !v.valid {
+		return nil
+	}
+
+	return v.value
 }
